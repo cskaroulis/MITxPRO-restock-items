@@ -1,10 +1,23 @@
-// const products = [
-//   { name: "Apples_:", country: "Italy", cost: 3, instock: 10 },
-//   { name: "Oranges:", country: "Spain", cost: 4, instock: 3 },
-//   { name: "Beans__:", country: "USA", cost: 2, instock: 5 },
-//   { name: "Cabbage:", country: "USA", cost: 1, instock: 8 },
-// ];
+// helper functions
 
+// turn an item id into an image source
+const getPhotoSrc = (id) => {
+  return `http://localhost:8080/images/product${id}.png`;
+}
+
+// returns a random string
+const makeRequestId = (length) => {
+  var result = '';
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() *
+      charactersLength));
+  }
+  return result;
+}
+
+// grab data
 const useDataApi = (initialUrl, initialData) => {
   const { useState, useEffect, useReducer } = React;
   const [url, setUrl] = useState(initialUrl);
@@ -65,15 +78,6 @@ const dataFetchReducer = (state, action) => {
   }
 };
 
-const getPhotoSrc = (id) => {
-  const photos = {
-    1: "apple.png",
-    2: "orange.png",
-    3: "beans.png",
-    4: "cabbage.png"
-  }
-  return "http://localhost:8080/images/" + photos[id];
-}
 
 const Cart = (props) => {
   const { Card, Accordion, Button } = ReactBootstrap;
@@ -108,9 +112,14 @@ const Products = (props) => {
     }
   );
 
+  // this useEffect watches for changes to the data object
+  // and if we are in restocking mode, it uses the data to restock.
+  // If not in restocking mode, it just saves the data into state.
   useEffect(() => {
     let products;
     if (data && data["data"] && data["data"].length) {
+      // when data is returned from the cartDB it is too nested.
+      // here we flatten the product objects
       products = data["data"].map((item) => {
         return { id: item.id, ...item.attributes };
       });
@@ -133,7 +142,6 @@ const Products = (props) => {
 
   }, [data]); // Only re-run the effect if data changes
 
-  // Fetch Data
   const addToCart = (e) => {
     let name = e.target.name;
     let item = items.filter((item) => item.name == name);
@@ -142,9 +150,9 @@ const Products = (props) => {
     console.log(`add to Cart ${JSON.stringify(item)}`);
     setCart([...cart, ...item]);
   };
+
   const deleteCartItem = (delIndex) => {
     // this is the index in the cart not in the Product List
-
     let newCart = cart.filter((item, i) => delIndex != i);
     let target = cart.filter((item, index) => delIndex == index);
     let newItems = items.map((item, index) => {
@@ -167,6 +175,7 @@ const Products = (props) => {
       </li>
     );
   });
+
   let cartList = cart.map((item, index) => {
     return (
       <Card key={index}>
@@ -204,8 +213,6 @@ const Products = (props) => {
     let costs = cart.map((item) => item.cost);
     const reducer = (accum, current) => accum + current;
     let newTotal = costs.reduce(reducer, 0);
-    console.log(`total updated to ${newTotal}`);
-    //cart.map((item, index) => deleteCartItem(index));
     return newTotal;
   };
 
@@ -216,17 +223,6 @@ const Products = (props) => {
     // which in turn will trigger the useEffect
     doFetch(url + "?requestId=" + makeRequestId(5));
   };
-
-  const makeRequestId = (length) => {
-    var result = '';
-    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    var charactersLength = characters.length;
-    for (var i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() *
-        charactersLength));
-    }
-    return result;
-  }
 
   return (
     <Container>
@@ -248,6 +244,9 @@ const Products = (props) => {
       <Row>
         <form
           onSubmit={(event) => {
+            // the preventDefault() has to be called first
+            // else the data fetch awaits long enough
+            // for the browser to refresh the page.
             event.preventDefault();
             restockProducts(query);
           }}
